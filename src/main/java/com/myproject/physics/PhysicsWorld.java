@@ -88,9 +88,51 @@ public class PhysicsWorld {
      * @param obj2 The second physics object involved in the collision.
      */
     private void resolveCollision(PhysicsObject obj1, PhysicsObject obj2) {
-        // Collision resolution logic (impulse-based resolution and positional correction)
-        // See the implementation for details.
+        Rigidbody rb1 = obj1.rigidbody;
+        Rigidbody rb2 = obj2.rigidbody;
+
+        if (rb1.mass == 0.0f && rb2.mass == 0.0f) return; // both static
+
+        Vector2D normal = rb2.position.subtract(rb1.position);
+        if (obj1.collider.getType() == Collider.Type.AABB || obj2.collider.getType() == Collider.Type.AABB) {
+            if (obj1.collider.getType() == Collider.Type.CIRCLE) {
+                normal = rb1.position.subtract(
+                        closestPointOnAABB(obj2.collider.getCenter(), obj2.collider.getHalfSize(), rb1.position)
+                );
+            } else {
+                normal = rb2.position.subtract(
+                        closestPointOnAABB(obj1.collider.getCenter(), obj1.collider.getHalfSize(), rb2.position)
+                );
+            }
+        }
+        normal.normalize();
+
+        Vector2D relVel = rb2.velocity.subtract(rb1.velocity);
+        float velAlongNormal = relVel.dot(normal);
+        if (velAlongNormal > 0) return;
+        float restitution = 0.9f;
+        float invMass1 = rb1.mass > 0 ? 1f / rb1.mass : 0f;
+        float invMass2 = rb2.mass > 0 ? 1f / rb2.mass : 0f;
+        float j = -(1 + restitution) * velAlongNormal / (invMass1 + invMass2);
+        Vector2D impulse = normal.multiply(j);
+
+        if (rb1.mass > 0) rb1.velocity = rb1.velocity.subtract(impulse.multiply(invMass1));
+        if (rb2.mass > 0) rb2.velocity = rb2.velocity.add   (impulse.multiply(invMass2));
+
+        final float percent = 0.2f;
+        final float slop = 0.01f;
+        float penetration = 0f;
+        if (obj1.collider.getType() == Collider.Type.CIRCLE &&
+                obj2.collider.getType() == Collider.Type.CIRCLE) {
+            penetration = (obj1.collider.getRadius() + obj2.collider.getRadius()) -
+                    obj1.rigidbody.position.subtract(obj2.rigidbody.position).magnitude();
+        }
+        float correctionMag = Math.max(penetration - slop, 0f) / (invMass1 + invMass2) * percent;
+        Vector2D correction = normal.multiply(correctionMag);
+        if (rb1.mass > 0) rb1.position = rb1.position.subtract(correction.multiply(invMass1));
+        if (rb2.mass > 0) rb2.position = rb2.position.add   (correction.multiply(invMass2));
     }
+
 
     /**
      * Finds the closest point on an AABB to a given point.

@@ -31,12 +31,12 @@ public class PhysicsPanel extends JPanel {
 
         rb1 = new Rigidbody(1.0f);
         rb1.position = new Vector2D(-0.5f, 0.05f);
-        rb1.velocity = new Vector2D(2, 0);
+        rb1.velocity = new Vector2D(5, 0);
         col1 = new Collider(Collider.Type.CIRCLE, new Vector2D(-0.5f, -0.05f), 0.1f);
 
-        rb2 = new Rigidbody(1.0f);
-        rb2.position = new Vector2D(0.5f, -0.05f);
-        rb2.velocity = new Vector2D(-2, 0);
+        rb2 = new Rigidbody(3.0f);
+        rb2.position = new Vector2D( 0f, -0.05f);
+        rb2.velocity = new Vector2D(-2, 5);
         col2 = new Collider(Collider.Type.CIRCLE, new Vector2D(0.5f, 0.05f), 0.1f);
 
         world.addRigidbody(rb1, col1);
