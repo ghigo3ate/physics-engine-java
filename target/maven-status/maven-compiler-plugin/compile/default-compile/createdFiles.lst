@@ -1,0 +1,11 @@
+com\myproject\physics\Collider.class
+com\myproject\physics\Collider$Type.class
+com\myproject\physics\PhysicsPanel.class
+com\myproject\physics\Vector2D.class
+com\myproject\physics\Rigidbody.class
+com\myproject\physics\ConsoleRenderer.class
+com\myproject\physics\PhysicsWorld.class
+com\myproject\physics\PhysicsWorld$PhysicsObject.class
+com\myproject\physics\PhysicsPanel$1.class
+com\myproject\physics\PhysicsUI.class
+com\myproject\physics\PhysicsUI$1.class
