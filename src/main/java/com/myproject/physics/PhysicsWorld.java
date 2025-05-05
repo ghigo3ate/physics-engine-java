@@ -75,7 +75,7 @@ public class PhysicsWorld {
                 PhysicsObject obj2 = objects.get(j);
                 if (obj1.collider.checkCollision(obj2.collider)) {
                     resolveCollision(obj1, obj2);
-                    System.out.println("Collision detected and resolved between objects!");
+//                    System.out.println("Collision detected and resolved between objects!");
                 }
             }
         }

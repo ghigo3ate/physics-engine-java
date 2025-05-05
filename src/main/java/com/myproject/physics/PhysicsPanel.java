@@ -1,150 +1,147 @@
+/*
+ * Updated PhysicsPanel.java: supports variable number of balls, pause/resume, and custom ball color.
+ */
 package com.myproject.physics;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.geom.AffineTransform;
-import java.awt.BasicStroke;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Random;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Color;
 import java.awt.Stroke;
+import java.awt.BasicStroke;
+import java.awt.geom.AffineTransform;
+import java.awt.event.ActionListener;
 
-/**
- * A Swing-based panel for visualizing the 2D physics simulation.
- * This class handles rendering of physics objects and updating their states in real-time.
- */
 public class PhysicsPanel extends JPanel {
-
     private PhysicsWorld world;
-    private Rigidbody rb1, rb2, rbGround;
-    private Collider col1, col2, colGround;
     private Timer timer;
-    private final float deltaTime = 0.016f; // Approximately 60 FPS
-    private final float scale = 200.0f;     // Scale factor for simulation-to-screen conversion
+    private final float deltaTime = 0.016f; // ~60 FPS
+    private final float scale = 200.0f;
+    private List<Rigidbody> bodies;
+    private List<Collider> colliders;
+    private Color ballColor;
 
     /**
-     * Constructs a new PhysicsPanel and initializes the physics world and objects.
-     * Starts a timer to update the simulation and repaint the panel at ~60 FPS.
+     * Constructs a PhysicsPanel with the specified number of balls and color.
      */
-    public PhysicsPanel() {
-        // Initialize physics world and objects
+    public PhysicsPanel(int numBalls, Color ballColor) {
+        this.ballColor = ballColor;
         world = new PhysicsWorld();
+        bodies = new ArrayList<>();
+        colliders = new ArrayList<>();
+        Random rand = new Random();
 
-        rb1 = new Rigidbody(1.0f);
-        rb1.position = new Vector2D(-0.5f, 0.05f);
-        rb1.velocity = new Vector2D(5, 0);
-        col1 = new Collider(Collider.Type.CIRCLE, new Vector2D(-0.5f, -0.05f), 0.1f);
+        // Create dynamic balls centered around origin
+        for (int i = 0; i < numBalls; i++) {
+            Rigidbody rb = new Rigidbody(1.0f);
+            float x = rand.nextFloat() - 0.5f;
+            float y = rand.nextFloat() - 0.5f;
+            rb.position = new Vector2D(x, y);
+            rb.velocity = new Vector2D(rand.nextFloat() * 10 - 5, rand.nextFloat() * 10 - 5);
+            Collider col = new Collider(Collider.Type.CIRCLE, new Vector2D(x, y), 0.1f);
 
-        rb2 = new Rigidbody(3.0f);
-        rb2.position = new Vector2D( 0f, -0.05f);
-        rb2.velocity = new Vector2D(-2, 5);
-        col2 = new Collider(Collider.Type.CIRCLE, new Vector2D(0.5f, 0.05f), 0.1f);
+            world.addRigidbody(rb, col);
+            bodies.add(rb);
+            colliders.add(col);
+        }
 
-        world.addRigidbody(rb1, col1);
-        world.addRigidbody(rb2, col2);
-
-        rbGround = new Rigidbody(0.0f); // Static ground object
+        // Create static ground at center bottom
+        Rigidbody rbGround = new Rigidbody(0.0f);
         rbGround.position = new Vector2D(0, 0);
-        colGround = new Collider(Collider.Type.AABB, new Vector2D(0, 0), new Vector2D(2, 0.5f));
+        Collider colGround = new Collider(Collider.Type.AABB, new Vector2D(0, 0), new Vector2D(2, 0.5f));
         world.addRigidbody(rbGround, colGround);
+        bodies.add(rbGround);
+        colliders.add(colGround);
 
-        // Start a Swing timer to update simulation and repaint at ~60 FPS
-        timer = new Timer(16, new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                world.update(deltaTime);
-                // Update collider positions to match rigidbody positions
-                col1.setCenter(rb1.position);
-                col2.setCenter(rb2.position);
-                colGround.setCenter(rbGround.position);
-
-                repaint();
+        // Prepare timer but do NOT start until UI triggers it
+        ActionListener step = e -> {
+            world.update(deltaTime);
+            for (int i = 0; i < bodies.size(); i++) {
+                colliders.get(i).setCenter(bodies.get(i).position);
             }
-        });
+            repaint();
+        };
+        timer = new Timer((int)(deltaTime * 1000), step);
+    }
+
+    /**
+     * Starts or restarts the simulation.
+     */
+    public void startSimulation() {
+        if (timer.isRunning()) {
+            timer.stop();
+        }
         timer.start();
     }
 
     /**
-     * Converts simulation coordinates to screen coordinates.
-     *
-     * @param pos The position in simulation coordinates.
-     * @return The position in screen coordinates.
+     * Pauses the simulation.
      */
-    private Vector2D simulationToScreen(Vector2D pos) {
-        int width = getWidth();
-        int height = getHeight();
-        float screenX = width / 2 + pos.x * scale;
-        float screenY = height / 2 - pos.y * scale; // Invert Y axis for screen
-        return new Vector2D(screenX, screenY);
+    public void pauseSimulation() {
+        if (timer.isRunning()) {
+            timer.stop();
+        }
     }
 
     /**
-     * Paints the physics objects onto the panel.
-     *
-     * @param g The Graphics object used for rendering.
+     * Resumes the simulation.
      */
+    public void resumeSimulation() {
+        if (!timer.isRunning()) {
+            timer.start();
+        }
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        // Enable anti-aliasing for smooth rendering
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
         // Clear background
         g2d.setColor(Color.BLACK);
         g2d.fillRect(0, 0, getWidth(), getHeight());
 
-        // Draw dynamic circle objects (blue)
-        g2d.setColor(Color.BLUE);
-        drawCircle(g2d, col1);
-        drawCircle(g2d, col2);
-
-        // Draw ground (red rectangle)
-        g2d.setColor(Color.RED);
-        drawAABB(g2d, colGround);
+        // Draw all colliders
+        for (Collider col : colliders) {
+            if (col.getType() == Collider.Type.CIRCLE) {
+                g2d.setColor(ballColor);
+                drawCircle(g2d, col);
+            } else {
+                g2d.setColor(Color.RED);
+                drawAABB(g2d, col);
+            }
+        }
     }
 
-    /**
-     * Draws a circle collider on the panel.
-     *
-     * @param g2d      The Graphics2D object used for rendering.
-     * @param collider The circle collider to draw.
-     */
+    private Vector2D simulationToScreen(Vector2D pos) {
+        int width = getWidth();
+        int height = getHeight();
+        float screenX = width / 2 + pos.x * scale;
+        float screenY = height / 2 - pos.y * scale;
+        return new Vector2D(screenX, screenY);
+    }
+
     private void drawCircle(Graphics2D g2d, Collider collider) {
         Vector2D center = simulationToScreen(collider.getCenter());
         int radius = (int)(collider.getRadius() * scale);
-        g2d.drawOval((int)(center.x - radius), (int)(center.y - radius), 2 * radius, 2 * radius);
+        g2d.fillOval((int)(center.x - radius), (int)(center.y - radius), 2 * radius, 2 * radius);
     }
 
-    /**
-     * Draws an AABB collider on the panel.
-     *
-     * @param g2d      The Graphics2D object used for rendering.
-     * @param collider The AABB collider to draw.
-     */
     private void drawAABB(Graphics2D g2d, Collider collider) {
-        // Save original stroke & transform
         Stroke oldStroke = g2d.getStroke();
         AffineTransform oldTx = g2d.getTransform();
-
-        // Convert simulation center → screen coordinates
         Vector2D screenCenter = simulationToScreen(collider.getCenter());
-
-        // 1) Translate to the rectangle's center
         g2d.translate(screenCenter.x, screenCenter.y);
-
-        // 2) Scale coordinate system by the half‑sizes * 2 (to get full width/height)
         double fullWidth  = collider.getHalfSize().x * 1.05 * scale;
         double fullHeight = collider.getHalfSize().y * 1.2 * scale;
         g2d.scale(fullWidth, fullHeight);
-
-        // 3) Make the stroke thicker (in device space, e.g. 10 pixels)
         g2d.setStroke(new BasicStroke((float) (10 / Math.max(fullWidth, fullHeight))));
-
-        // 4) Draw a unit rect from (–0.5, –0.5) to (+0.5, +0.5)
-        //    which, under our scale, becomes exactly the desired box.
         g2d.drawRect(-1, -1, 2, 2);
-
-        // Restore stroke & transform
         g2d.setStroke(oldStroke);
         g2d.setTransform(oldTx);
     }
